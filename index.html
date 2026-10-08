@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PNG-Metadaten-Editor</title>
+<style>
+:root{--bg:#dfe4e6;--panel:#f4f6f5;--ink:#1d2a2e;--mute:#5d6e72;--line:#c3cccf;--acc:#0f6e6e;--accInk:#fff;--bad:#b3382c}
+@media (prefers-color-scheme:dark){:root{--bg:#161d1f;--panel:#212b2e;--ink:#e4ecec;--mute:#92a4a8;--line:#35444a;--acc:#5cc7c0;--accInk:#0e1a1b;--bad:#ef8a7c}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column}
+button,input,textarea{font:inherit;color:inherit}
+button{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:.45rem .9rem;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--acc)}
+button:disabled{opacity:.45;cursor:default}
+button.primary{background:var(--acc);border-color:var(--acc);color:var(--accInk);font-weight:600}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+header{display:flex;gap:.75rem;align-items:center;padding:.6rem 1rem;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:1rem;margin:0 .5rem 0 0}
+#filter{flex:1;min-width:8rem;max-width:20rem;padding:.4rem .6rem;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+#status{font-size:.85rem;color:var(--mute);margin-left:auto}
+#status.err{color:var(--bad)}
+main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(220px,340px) 1fr}
+#side{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}
+#tagbar{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;padding:.5rem .6rem;max-height:7.5rem;overflow:auto;background:var(--panel);border-bottom:1px solid var(--line)}
+#tagbar[hidden]{display:none}
+.tf{padding:.15rem .6rem;border-radius:999px;font-size:.82rem}
+.tf[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:var(--accInk)}
+.cnt{font-size:.8rem;color:var(--mute);margin-left:auto}
+#grid{flex:1;min-height:0;overflow:auto;padding:.6rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:.5rem;align-content:start}
+.th{padding:0;border:2px solid transparent;border-radius:6px;overflow:hidden;background:var(--panel);text-align:left}
+.th[aria-current=true]{border-color:var(--acc)}
+.th .im{aspect-ratio:1;display:block;background:repeating-conic-gradient(var(--line) 0 25%,transparent 0 50%) 0 0/12px 12px}
+.th img{width:100%;height:100%;object-fit:contain;display:block}
+.th span{display:block;padding:.2rem .35rem;font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#detail{overflow:auto;padding:1rem;display:flex;flex-direction:column;gap:1rem}
+#empty{margin:auto;color:var(--mute);text-align:center;max-width:26rem}
+#view{display:none;flex-direction:column;gap:1rem}
+#prev{background:repeating-conic-gradient(var(--line) 0 25%,transparent 0 50%) 0 0/16px 16px;border-radius:8px;padding:.5rem;display:flex;justify-content:center;max-height:45vh}
+#prev img{max-width:100%;max-height:calc(45vh - 1rem);object-fit:contain}
+#info{font-size:.85rem;color:var(--mute)}
+#info b{color:var(--ink);font-weight:600}
+.row{display:grid;grid-template-columns:12rem 1fr auto;gap:.5rem;align-items:start;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.6rem}
+.row input,.row textarea{width:100%;padding:.4rem .5rem;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.row input{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9rem}
+.row textarea{min-height:2.4rem;resize:vertical}
+.row .del{color:var(--bad)}
+.bar{display:flex;gap:.5rem;flex-wrap:wrap}
+#tags{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.5rem .6rem;display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+#tags:focus-within{border-color:var(--acc)}
+.chip{display:inline-flex;align-items:center;background:var(--acc);color:var(--accInk);border-radius:999px;padding:.1rem .25rem .1rem .75rem;font-size:.9rem}
+.chip button{border:0;background:none;padding:0 .45rem;color:inherit;line-height:1.3;opacity:.75}
+.chip button:hover{opacity:1}
+#namein{width:100%;padding:.45rem .6rem;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+.lbl{font-size:.8rem;color:var(--mute)}
+#src{display:flex;gap:.5rem;align-items:center}
+#srcin{flex:1;min-width:0;padding:.45rem .6rem;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9rem}
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:.45rem .9rem;color:var(--acc);text-decoration:none;white-space:nowrap;font-weight:600}
+.btn:hover{border-color:var(--acc)}
+.btn[aria-disabled=true]{opacity:.45;pointer-events:none;color:var(--mute)}
+#tagin{flex:1;min-width:10rem;border:0;background:none;padding:.3rem;outline:0}
+@media (max-width:760px){main{grid-template-columns:1fr;grid-template-rows:45% 1fr}#side{border-right:0;border-bottom:1px solid var(--line)}.row{grid-template-columns:1fr auto}.row input{grid-column:1}.row textarea{grid-column:1/-1;grid-row:2}}
+</style>
+</head>
+<body>
+<header>
+  <h1>PNG-Metadaten</h1>
+  <button id="open" class="primary">Ordner öffnen</button>
+  <input id="filter" type="search" placeholder="Dateien/Ordner filtern" aria-label="Dateien oder Ordner filtern">
+  <span id="status" role="status" aria-live="polite"></span>
+</header>
+<input id="fallback" type="file" accept=".png,image/png" webkitdirectory multiple hidden>
+<main>
+  <div id="side">
+    <div id="tagbar" hidden></div>
+    <div id="grid"></div>
+  </div>
+  <section id="detail">
+    <p id="empty">Öffne einen Ordner, um die PNG-Dateien darin anzuzeigen. Wähle eine Datei, um ihre Textmetadaten zu bearbeiten.</p>
+    <div id="view">
+      <div id="prev"><img id="img" alt=""></div>
+      <div id="info"></div>
+      <div id="tags"><input id="tagin" list="tagsug" placeholder="Tag hinzufügen (Enter oder Komma)" aria-label="Tag hinzufügen" autocomplete="off"></div>
+      <datalist id="tagsug"></datalist>
+      <input id="namein" list="namesug" type="text" placeholder="Name der Quelle (source_name)" aria-label="Name der Quelle" autocomplete="off">
+      <datalist id="namesug"></datalist>
+      <div id="src">
+        <input id="srcin" type="text" inputmode="url" placeholder="Quell-URL (url_source), z. B. https://…" aria-label="Quell-URL" autocomplete="off" spellcheck="false">
+        <a id="srclink" class="btn" target="_blank" rel="noopener noreferrer">Link öffnen</a>
+      </div>
+      <div id="rows" style="display:flex;flex-direction:column;gap:.5rem"></div>
+      <div class="bar">
+        <button id="add">Eintrag hinzufügen</button>
+        <button id="save" class="primary" disabled>Speichern</button>
+        <button id="revert" disabled>Verwerfen</button>
+      </div>
+    </div>
+  </section>
+</main>
+<datalist id="kw">
+  <option value="Title"><option value="Author"><option value="Description"><option value="Copyright">
+  <option value="Creation Time"><option value="Software"><option value="Source"><option value="Comment"><option value="Warning"><option value="Disclaimer">
+</datalist>
+
+<script>
+const $ = s => document.querySelector(s);
+const SIG = [137,80,78,71,13,10,26,10];
+const TEXT = ['tEXt','zTXt','iTXt'];
+const S = { items: [], cur: -1, entries: [], tags: [], chunks: [], dirty: false, url: null };
+const known = new Set();
+Object.assign(S, { sel: new Set(), noTag: false, selSrc: new Set(), noSrc: false, scan: 0, msg: '', src: '', srcName: '' });
+const knownNames = new Set();
+
+/* ---------- PNG-Handling ---------- */
+const crcT = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = crcT[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+const lat1 = b => { let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return s; };
+const isLat1 = s => [...s].every(c => c.charCodeAt(0) < 256);
+const toLat1 = s => Uint8Array.from([...s].map(c => c.charCodeAt(0)));
+const cat = arr => { const o = new Uint8Array(arr.reduce((n, a) => n + a.length, 0)); let p = 0; for (const a of arr) { o.set(a, p); p += a.length; } return o; };
+
+async function inflate(u8) {
+  const s = new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate'));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+
+async function decodeText(c) {
+  const d = c.data, z = d.indexOf(0), keyword = lat1(d.subarray(0, z));
+  if (c.type === 'tEXt') return { keyword, text: lat1(d.subarray(z + 1)), kind: 'tEXt' };
+  if (c.type === 'zTXt') return { keyword, text: lat1(await inflate(d.subarray(z + 2))), kind: 'zTXt' };
+  const comp = d[z + 1]; let q = z + 3;
+  const z2 = d.indexOf(0, q), lang = lat1(d.subarray(q, z2)); q = z2 + 1;
+  const z3 = d.indexOf(0, q), tr = new TextDecoder().decode(d.subarray(q, z3)); q = z3 + 1;
+  let t = d.subarray(q); if (comp) t = await inflate(t);
+  return { keyword, text: new TextDecoder().decode(t), kind: 'iTXt', lang, tr };
+}
+
+async function parsePng(u8) {
+  if (SIG.some((v, i) => u8[i] !== v)) throw new Error('Keine gültige PNG-Datei');
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength), chunks = [];
+  let p = 8;
+  while (p + 12 <= u8.length) {
+    const len = dv.getUint32(p), type = lat1(u8.subarray(p + 4, p + 8));
+    chunks.push({ type, data: u8.subarray(p + 8, p + 8 + len), raw: u8.subarray(p, p + 12 + len) });
+    p += 12 + len;
+    if (type === 'IEND') break;
+  }
+  const entries = [];
+  for (const c of chunks) if (TEXT.includes(c.type)) { try { entries.push(await decodeText(c)); } catch {} }
+  return { chunks, entries };
+}
+
+function mkChunk(type, data) {
+  const o = new Uint8Array(12 + data.length), dv = new DataView(o.buffer);
+  dv.setUint32(0, data.length);
+  for (let i = 0; i < 4; i++) o[4 + i] = type.charCodeAt(i);
+  o.set(data, 8);
+  dv.setUint32(8 + data.length, crc32(o.subarray(4, 8 + data.length)));
+  return o;
+}
+
+function encodeText(e) {
+  const kw = e.keyword.trim();
+  if (!kw || kw.length > 79 || !isLat1(kw)) throw new Error(`Ungültiger Schlüssel „${e.keyword}“ (1–79 Zeichen, nur Latin-1)`);
+  if (e.kind !== 'iTXt' && isLat1(e.text) && !e.text.includes('\0'))
+    return mkChunk('tEXt', cat([toLat1(kw), Uint8Array.of(0), toLat1(e.text)]));
+  const enc = new TextEncoder();
+  return mkChunk('iTXt', cat([toLat1(kw), Uint8Array.of(0, 0, 0), toLat1(e.lang || ''), Uint8Array.of(0), enc.encode(e.tr || ''), Uint8Array.of(0), enc.encode(e.text)]));
+}
+
+function build() {
+  const txt = S.entries.filter(e => e.keyword.trim() || e.text).map(encodeText);
+  if (S.tags.length) {
+    if (S.entries.some(e => e.keyword.trim() === 'tag')) throw new Error('Der Schlüssel „tag“ ist für die Tags reserviert. Entferne den gleichnamigen Eintrag in der Liste.');
+    txt.unshift(mkChunk('tEXt', cat([toLat1('tag'), Uint8Array.of(0), toLat1(encTags(S.tags))])));
+  }
+  const src = S.src.trim();
+  if (src) {
+    if (S.entries.some(e => e.keyword.trim() === 'url_source')) throw new Error('Der Schlüssel „url_source“ ist für die Quell-URL reserviert. Entferne den gleichnamigen Eintrag in der Liste.');
+    txt.unshift(mkChunk('tEXt', cat([toLat1('url_source'), Uint8Array.of(0), toLat1(asciiUrl(src))])));
+  }
+  const nm = S.srcName.trim();
+  if (nm) {
+    if (S.entries.some(e => e.keyword.trim() === 'source_name')) throw new Error('Der Schlüssel „source_name“ ist für den Quellennamen reserviert. Entferne den gleichnamigen Eintrag in der Liste.');
+    if (!isLat1(nm) || nm.includes('\0')) throw new Error('Der Quellenname enthält Zeichen außerhalb von Latin-1 und passt nicht in einen tEXt-Chunk.');
+    txt.unshift(mkChunk('tEXt', cat([toLat1('source_name'), Uint8Array.of(0), toLat1(nm)])));
+  }
+  const parts = [Uint8Array.from(SIG)]; let done = false;
+  for (const c of S.chunks) {
+    if (TEXT.includes(c.type)) continue;
+    if (c.type === 'IDAT' && !done) { parts.push(...txt); done = true; }
+    parts.push(c.raw);
+  }
+  if (!done) throw new Error('Keine Bilddaten (IDAT) gefunden');
+  return new Blob(parts, { type: 'image/png' });
+}
+
+/* ---------- Dateizugriff ---------- */
+const getFile = it => it.handle ? it.handle.getFile() : Promise.resolve(it.file);
+
+function status(msg, err) { const s = $('#status'); s.textContent = msg; s.className = err ? 'err' : ''; }
+
+async function openDir() {
+  if (!window.showDirectoryPicker) { $('#fallback').click(); return; }
+  try {
+    const dir = await showDirectoryPicker({ mode: 'readwrite' });
+    const items = [];
+    const walk = async (d, prefix) => {
+      for await (const [name, h] of d.entries()) {
+        if (h.kind === 'file') {
+          if (/\.png$/i.test(name)) { items.push({ name, path: prefix + name, handle: h }); if (items.length % 25 === 0) status(`Ordner wird gelesen … ${items.length} PNG`); }
+        } else if (!name.startsWith('.')) await walk(h, prefix + name + '/');
+      }
+    };
+    status('Ordner wird gelesen …');
+    await walk(dir, '');
+    setItems(items, `${dir.name}: ${items.length} PNG inkl. Unterordner`);
+  } catch (e) { if (e.name !== 'AbortError') status(e.message, true); }
+}
+
+$('#fallback').addEventListener('change', e => {
+  const items = [...e.target.files].filter(f => /\.png$/i.test(f.name) && !/(^|\/)\.[^/]/.test(f.webkitRelativePath.split('/').slice(1).join('/')))
+    .map(f => ({ name: f.name, path: f.webkitRelativePath.split('/').slice(1).join('/') || f.name, file: f }));
+  setItems(items, `${items.length} PNG (nur lesen, Speichern per Download)`);
+});
+
+/* ---------- Galerie ---------- */
+const io = new IntersectionObserver(async es => {
+  for (const e of es) {
+    if (!e.isIntersecting) continue;
+    io.unobserve(e.target);
+    const it = e.target._it;
+    try { it.thumb = URL.createObjectURL(await getFile(it)); e.target.querySelector('img').src = it.thumb; } catch {}
+  }
+}, { root: $('#grid'), rootMargin: '200px' });
+
+function setItems(items, msg) {
+  S.items.forEach(i => i.thumb && URL.revokeObjectURL(i.thumb));
+  items.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }));
+  S.items = items; S.cur = -1; S.dirty = false;
+  S.sel = new Set(); S.noTag = false; S.selSrc = new Set(); S.noSrc = false; S.msg = msg;
+  const g = $('#grid'); g.textContent = '';
+  items.forEach((it, i) => {
+    const b = document.createElement('button');
+    b.className = 'th'; b.title = it.path; b._it = it; it.el = b;
+    b.innerHTML = '<span class="im"><img alt=""></span><span></span>';
+    b.lastChild.textContent = it.name;
+    b.onclick = () => select(i);
+    g.appendChild(b); io.observe(b);
+  });
+  $('#view').style.display = 'none'; $('#empty').style.display = '';
+  $('#empty').textContent = items.length ? 'Wähle eine Datei, um ihre Textmetadaten zu bearbeiten.' : 'In diesem Ordner liegen keine PNG-Dateien.';
+  status(msg);
+  renderTagBar(); applyFilter(); scanAll();
+}
+
+/* ---------- Tag-Filter ---------- */
+// Liest nur die Chunk-Header bis zum ersten IDAT und den "tag"-tEXt-Chunk, nicht die ganze Datei
+async function scanMeta(it) {
+  const r = { tags: [], source: '' };
+  try {
+    const f = await getFile(it); let p = 8;
+    while (p + 12 <= f.size) {
+      const h = new Uint8Array(await f.slice(p, p + 8).arrayBuffer());
+      const len = new DataView(h.buffer).getUint32(0), type = lat1(h.subarray(4, 8));
+      if (type === 'IDAT' || type === 'IEND') break;
+      if (type === 'tEXt' && len < 1e6) {
+        const d = new Uint8Array(await f.slice(p + 8, p + 8 + len).arrayBuffer()), z = d.indexOf(0);
+        const k = lat1(d.subarray(0, z)), val = lat1(d.subarray(z + 1));
+        if (k === 'tag') {
+          try { const v = JSON.parse(val); if (Array.isArray(v)) r.tags = [...new Set(v.filter(x => typeof x === 'string').map(s => s.trim()).filter(Boolean))]; } catch {}
+        } else if (k === 'source_name') r.source = val.trim();
+      }
+      p += 12 + len;
+    }
+  } catch {}
+  return r;
+}
+
+async function scanAll() {
+  const id = ++S.scan, items = S.items; let n = 0, next = 0;
+  const worker = async () => {
+    while (next < items.length && id === S.scan) {
+      const it = items[next++]; if (!it.tags) { const m = await scanMeta(it); it.tags = m.tags; it.source = m.source; }
+      if (id !== S.scan) return;
+      if (++n % 10 === 0) { status(`Tags lesen … ${n}/${items.length}`); renderTagBar(); }
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  if (id !== S.scan) return;
+  const all = new Set(items.flatMap(i => i.tags || []));
+  const nsrc = new Set(items.map(i => i.source).filter(Boolean)).size;
+  status(`${S.msg} · ${all.size} Tags · ${nsrc} Quellen`); renderTagBar(); applyFilter();
+}
+
+function renderTagBar() {
+  const bar = $('#tagbar'), m = new Map(); let none = 0;
+  S.items.forEach(it => { if (!it.tags) return; if (!it.tags.length) none++; it.tags.forEach(t => m.set(t, (m.get(t) || 0) + 1)); });
+  bar.textContent = '';
+  const sm = new Map(); let noneS = 0;
+  S.items.forEach(it => { if (!it.tags) return; if (it.source) sm.set(it.source, (sm.get(it.source) || 0) + 1); else noneS++; });
+  renderNameSug();
+  if (!m.size && !S.noTag && !S.sel.size && !sm.size && !S.noSrc && !S.selSrc.size) { bar.hidden = true; return; }
+  bar.hidden = false;
+  const lbl = t => { const s = document.createElement('span'); s.className = 'lbl'; s.textContent = t; bar.appendChild(s); };
+  lbl('Tags');
+  const mk = (label, on, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'tf'; b.textContent = label; b.setAttribute('aria-pressed', on); b.onclick = fn; bar.appendChild(b); };
+  [...m.keys()].sort((a, b) => a.localeCompare(b)).forEach(t =>
+    mk(`${t} (${m.get(t)})`, S.sel.has(t), () => { S.sel.has(t) ? S.sel.delete(t) : S.sel.add(t); S.noTag = false; renderTagBar(); applyFilter(); }));
+  mk(`Ohne Tags (${none})`, S.noTag, () => { S.noTag = !S.noTag; if (S.noTag) S.sel.clear(); renderTagBar(); applyFilter(); });
+  if (sm.size || S.noSrc || S.selSrc.size) {
+    const br = document.createElement('div'); br.style.flexBasis = '100%'; bar.appendChild(br);
+    lbl('Quelle');
+    [...sm.keys()].sort((a, b) => a.localeCompare(b)).forEach(s =>
+      mk(`${s} (${sm.get(s)})`, S.selSrc.has(s), () => { S.selSrc.has(s) ? S.selSrc.delete(s) : S.selSrc.add(s); S.noSrc = false; renderTagBar(); applyFilter(); }));
+    mk(`Ohne Quelle (${noneS})`, S.noSrc, () => { S.noSrc = !S.noSrc; if (S.noSrc) S.selSrc.clear(); renderTagBar(); applyFilter(); });
+  }
+  if (S.sel.size || S.noTag || S.selSrc.size || S.noSrc) mk('Zurücksetzen', false, () => { S.sel.clear(); S.noTag = false; S.selSrc.clear(); S.noSrc = false; renderTagBar(); applyFilter(); });
+  const cnt = document.createElement('span'); cnt.className = 'cnt'; cnt.id = 'cnt'; bar.appendChild(cnt);
+  updateCount();
+}
+
+function applyFilter() {
+  const q = $('#filter').value.toLowerCase();
+  S.items.forEach(it => {
+    let ok = it.path.toLowerCase().includes(q);
+    if (ok && S.noTag) ok = !!it.tags && !it.tags.length;
+    if (ok && S.sel.size) ok = !!it.tags && [...S.sel].every(t => it.tags.includes(t));
+    if (ok && S.noSrc) ok = !!it.tags && !it.source;
+    if (ok && S.selSrc.size) ok = S.selSrc.has(it.source);
+    it.el.hidden = !ok;
+  });
+  updateCount();
+}
+
+function updateCount() {
+  const c = $('#cnt'); if (!c) return;
+  const active = S.sel.size || S.noTag || S.selSrc.size || S.noSrc || $('#filter').value;
+  c.textContent = active ? `${S.items.filter(i => !i.el.hidden).length} von ${S.items.length}` : '';
+}
+
+$('#filter').addEventListener('input', applyFilter);
+
+/* ---------- Detailansicht ---------- */
+async function select(i, force) {
+  if (!force && S.dirty && !confirm('Ungespeicherte Änderungen verwerfen?')) return;
+  try {
+    const it = S.items[i], file = await getFile(it);
+    const { chunks, entries } = await parsePng(new Uint8Array(await file.arrayBuffer()));
+    S.cur = i; S.chunks = chunks; S.entries = entries; S.dirty = false;
+    S.tags = extractTags(entries); S.tags.forEach(t => known.add(t)); $('#tagin').value = ''; renderTags();
+    it.tags = [...S.tags]; renderTagBar(); applyFilter();
+    S.src = extractSource(entries); $('#srcin').value = S.src; updateLink();
+    S.srcName = extractName(entries); $('#namein').value = S.srcName; it.source = S.srcName; renderTagBar(); applyFilter();
+    S.items.forEach((x, k) => x.el.setAttribute('aria-current', k === i));
+    if (S.url) URL.revokeObjectURL(S.url);
+    S.url = URL.createObjectURL(file); $('#img').src = S.url; $('#img').alt = it.name;
+    const ih = chunks.find(c => c.type === 'IHDR'), dv = ih && new DataView(ih.data.buffer, ih.data.byteOffset);
+    const other = [...new Set(chunks.filter(c => !TEXT.includes(c.type)).map(c => c.type))].join(', ');
+    $('#info').innerHTML = '';
+    const b = document.createElement('b'); b.textContent = it.path;
+    $('#info').append(b, ` – ${dv ? dv.getUint32(0) + ' × ' + dv.getUint32(4) + ' px, ' : ''}${(file.size / 1024).toFixed(1)} KB. Weitere Chunks bleiben unverändert: ${other}`);
+    $('#empty').style.display = 'none'; $('#view').style.display = 'flex';
+    renderRows(); markDirty(false);
+  } catch (e) { status(e.message, true); }
+}
+
+function markDirty(d = true) {
+  S.dirty = d; $('#save').disabled = !d; $('#revert').disabled = !d;
+}
+
+function renderRows() {
+  const box = $('#rows'); box.textContent = '';
+  if (!S.entries.length) { const p = document.createElement('p'); p.style.color = 'var(--mute)'; p.textContent = 'Diese Datei enthält keine Textmetadaten.'; box.appendChild(p); }
+  S.entries.forEach((e, i) => {
+    const r = document.createElement('div'); r.className = 'row';
+    const k = document.createElement('input'); k.value = e.keyword; k.setAttribute('list', 'kw'); k.setAttribute('aria-label', 'Schlüssel'); k.placeholder = 'Schlüssel';
+    const t = document.createElement('textarea'); t.value = e.text; t.setAttribute('aria-label', 'Wert'); t.placeholder = 'Wert';
+    const d = document.createElement('button'); d.className = 'del'; d.textContent = 'Entfernen';
+    const fit = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 300) + 'px'; };
+    k.oninput = () => { e.keyword = k.value; markDirty(); };
+    t.oninput = () => { e.text = t.value; markDirty(); fit(); };
+    d.onclick = () => { S.entries.splice(i, 1); renderRows(); markDirty(); };
+    r.append(k, t, d); box.appendChild(r); fit();
+  });
+}
+
+/* ---------- Tags (tEXt-Chunk "tag", Wert = JSON-Array) ---------- */
+// Nicht-ASCII-Zeichen als \uXXXX, damit der Wert immer gültiges Latin-1/ASCII bleibt
+const encTags = a => JSON.stringify(a).replace(/[\u0080-\uffff]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+
+function extractTags(entries) {
+  const i = entries.findIndex(e => e.keyword === 'tag');
+  if (i < 0) return [];
+  try {
+    const v = JSON.parse(entries[i].text);
+    if (Array.isArray(v) && v.every(x => typeof x === 'string')) {
+      entries.splice(i, 1);
+      return [...new Set(v.map(s => s.trim()).filter(Boolean))];
+    }
+  } catch {}
+  status('Der vorhandene „tag“-Eintrag ist kein JSON-Array aus Texten. Korrigiere ihn in der Liste unten.', true);
+  return [];
+}
+
+function renderTags() {
+  const box = $('#tags'), inp = $('#tagin');
+  box.querySelectorAll('.chip').forEach(c => c.remove());
+  S.tags.forEach((t, i) => {
+    const c = document.createElement('span'); c.className = 'chip';
+    const s = document.createElement('span'); s.textContent = t;
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = '×'; b.setAttribute('aria-label', `Tag ${t} entfernen`);
+    b.onclick = () => { S.tags.splice(i, 1); renderTags(); markDirty(); };
+    c.append(s, b); box.insertBefore(c, inp);
+  });
+  const dl = $('#tagsug'); dl.textContent = '';
+  [...new Set([...known, ...S.items.flatMap(i => i.tags || [])])].filter(t => !S.tags.includes(t)).sort().forEach(t => { const o = document.createElement('option'); o.value = t; dl.appendChild(o); });
+}
+
+function addTags(str) {
+  let changed = false;
+  for (const t of str.split(',').map(s => s.trim()).filter(Boolean))
+    if (!S.tags.includes(t)) { S.tags.push(t); known.add(t); changed = true; }
+  if (changed) { renderTags(); markDirty(); }
+}
+
+$('#tagin').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTags(e.target.value); e.target.value = ''; }
+  else if (e.key === 'Backspace' && !e.target.value && S.tags.length) { S.tags.pop(); renderTags(); markDirty(); }
+});
+$('#tagin').addEventListener('blur', e => { addTags(e.target.value); e.target.value = ''; });
+
+/* ---------- Quell-URL (tEXt-Chunk "url_source") ---------- */
+// tEXt kennt nur Latin-1: Sonderzeichen werden prozentkodiert (Punycode für Domains)
+function asciiUrl(v) {
+  if (!/[^\x21-\x7e]/.test(v)) return v;
+  try { return new URL(v).href; } catch { throw new Error('Die URL enthält Leer- oder Sonderzeichen und ist ungültig.'); }
+}
+
+function safeHref(v) {
+  try { const u = new URL(v.trim()); return /^https?:$/.test(u.protocol) ? u.href : ''; } catch { return ''; }
+}
+
+function updateLink() {
+  const a = $('#srclink'), h = safeHref(S.src);
+  if (h) { a.href = h; a.setAttribute('aria-disabled', 'false'); a.title = h; }
+  else { a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true'); a.removeAttribute('title'); }
+}
+
+function extractSource(entries) {
+  const i = entries.findIndex(e => e.keyword === 'url_source');
+  if (i < 0) return '';
+  return entries.splice(i, 1)[0].text.trim();
+}
+
+$('#srcin').addEventListener('input', e => { S.src = e.target.value; updateLink(); markDirty(); });
+
+/* ---------- Quellenname (tEXt-Chunk "source_name") ---------- */
+function extractName(entries) {
+  const i = entries.findIndex(e => e.keyword === 'source_name');
+  return i < 0 ? '' : entries.splice(i, 1)[0].text.trim();
+}
+
+function renderNameSug() {
+  const dl = $('#namesug'); dl.textContent = '';
+  [...new Set([...knownNames, ...S.items.map(i => i.source).filter(Boolean)])]
+    .sort((a, b) => a.localeCompare(b))
+    .forEach(n => { const o = document.createElement('option'); o.value = n; dl.appendChild(o); });
+}
+
+$('#namein').addEventListener('input', e => { S.srcName = e.target.value; markDirty(); });
+$('#namein').addEventListener('change', e => { const v = e.target.value.trim(); if (v) knownNames.add(v); });
+
+$('#add').onclick = () => { S.entries.push({ keyword: '', text: '', kind: 'tEXt' }); renderRows(); markDirty(); const k = $('#rows').lastChild.querySelector('input'); k && k.focus(); };
+$('#revert').onclick = () => select(S.cur, true);
+
+async function save() {
+  addTags($('#tagin').value); $('#tagin').value = '';
+  if (!S.dirty) return;
+  try {
+    const blob = build(), it = S.items[S.cur];
+    if (it.handle) {
+      const w = await it.handle.createWritable(); await w.write(blob); await w.close();
+      if (it.thumb) { URL.revokeObjectURL(it.thumb); it.thumb = URL.createObjectURL(await it.handle.getFile()); it.el.querySelector('img').src = it.thumb; }
+      status(`${it.name} gespeichert`);
+    } else {
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = it.name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      status(`${it.name} heruntergeladen (Original nicht überschrieben)`);
+    }
+    await select(S.cur, true);
+  } catch (e) { status(e.message, true); }
+}
+$('#save').onclick = save;
+$('#open').onclick = openDir;
+addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save(); } });
+addEventListener('beforeunload', e => { if (S.dirty) e.preventDefault(); });
+</script>
+</body>
+</html>
